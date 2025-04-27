@@ -1,3 +1,4 @@
+
 # 🎬 Movie Management Frontend
 
 This is the **frontend** part of the Movie Management System built using **React.js**. It allows users to:
@@ -27,3 +28,6 @@ This is the **frontend** part of the Movie Management System built using **React
 ```bash
 git clone https://github.com/yourusername/movie-frontend.git
 cd movie-frontend
+=======
+# moviemanagement-frontend
+>>>>>>> 07424e7dcda42cecff874f0476607c42c625d93e
