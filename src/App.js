@@ -100,23 +100,21 @@ function MoviesPage() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetchMovies();
-  }, []);
-
-  const fetchMovies = () => {
-    setLoading(true);
-    axios.get('http://localhost:8080/api/movies')
-      .then((response) => {
+    const fetchMovies = async () => {
+      try {
+        const response = await axios.get('http://localhost:8080/api/movies');
         setMovies(response.data.length > 0 ? response.data : sampleMovies);
         setLoading(false);
-      })
-      .catch((error) => {
+      } catch (error) {
         console.error('Error fetching movies:', error);
-        setMovies(sampleMovies); // Fallback to sample data
+        setMovies(sampleMovies);
         setError('Failed to connect to backend. Showing sample data.');
         setLoading(false);
-      });
-  };
+      }
+    };
+
+    fetchMovies();
+  }, []);
 
   if (loading) return <div className="loading">Loading...</div>;
 
@@ -160,23 +158,21 @@ function MovieManagement() {
   });
 
   useEffect(() => {
-    fetchMovies();
-  }, []);
-
-  const fetchMovies = () => {
-    setLoading(true);
-    axios.get('http://localhost:8080/api/movies')
-      .then((response) => {
+    const fetchMovies = async () => {
+      try {
+        const response = await axios.get('http://localhost:8080/api/movies');
         setMovies(response.data.length > 0 ? response.data : sampleMovies);
         setLoading(false);
-      })
-      .catch((error) => {
+      } catch (error) {
         console.error('Error fetching movies:', error);
-        setMovies(sampleMovies); // Fallback to sample data
+        setMovies(sampleMovies);
         setError('Failed to connect to backend. Showing sample data.');
         setLoading(false);
-      });
-  };
+      }
+    };
+
+    fetchMovies();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -199,32 +195,25 @@ function MovieManagement() {
     setShowForm(true);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
     
-    if (editingMovie) {
-      // Update existing movie
-      axios.put(`http://localhost:8080/api/movies/${editingMovie.id}`, form)
-        .then(() => {
-          fetchMovies();
-          resetForm();
-        })
-        .catch((error) => {
-          console.error('Error updating movie:', error);
-          setError('Failed to update movie. Please try again.');
-        });
-    } else {
-      // Add new movie
-      axios.post('http://localhost:8080/api/movies', form)
-        .then(() => {
-          fetchMovies();
-          resetForm();
-        })
-        .catch((error) => {
-          console.error('Error adding movie:', error);
-          setError('Failed to add movie. Please try again.');
-        });
+    try {
+      if (editingMovie) {
+        await axios.put(`http://localhost:8080/api/movies/${editingMovie.id}`, form);
+        const updatedMovies = movies.map(movie => 
+          movie.id === editingMovie.id ? { ...movie, ...form } : movie
+        );
+        setMovies(updatedMovies);
+      } else {
+        const response = await axios.post('http://localhost:8080/api/movies', form);
+        setMovies([...movies, response.data]);
+      }
+      resetForm();
+    } catch (error) {
+      console.error('Error saving movie:', error);
+      setError('Failed to save movie. Please try again.');
     }
   };
 
@@ -241,16 +230,15 @@ function MovieManagement() {
     setShowForm(false);
   };
 
-  const handleDelete = (movieId) => {
+  const handleDelete = async (movieId) => {
     if (window.confirm('Are you sure you want to delete this movie?')) {
-      axios.delete(`http://localhost:8080/api/movies/${movieId}`)
-        .then(() => {
-          fetchMovies();
-        })
-        .catch((error) => {
-          console.error('Error deleting movie:', error);
-          setError('Failed to delete movie. Please try again.');
-        });
+      try {
+        await axios.delete(`http://localhost:8080/api/movies/${movieId}`);
+        setMovies(movies.filter(movie => movie.id !== movieId));
+      } catch (error) {
+        console.error('Error deleting movie:', error);
+        setError('Failed to delete movie. Please try again.');
+      }
     }
   };
 
@@ -372,27 +360,19 @@ function MovieDetailsPage({ id }) {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetchMovieAndReviews();
-  }, [id]);
-
-  const fetchMovieAndReviews = () => {
-    setLoading(true);
-    
-    // Fetch movie details
-    axios.get(`http://localhost:8080/api/movies/${id}`)
-      .then((response) => {
-        setMovie(response.data);
+    const fetchMovieAndReviews = async () => {
+      setLoading(true);
+      try {
+        const [movieResponse, reviewsResponse] = await Promise.all([
+          axios.get(`http://localhost:8080/api/movies/${id}`),
+          axios.get(`http://localhost:8080/api/movies/${id}/reviews`)
+        ]);
         
-        // After getting movie, fetch reviews
-        return axios.get(`http://localhost:8080/api/movies/${id}/reviews`);
-      })
-      .then((reviewsResponse) => {
+        setMovie(movieResponse.data);
         setReviews(reviewsResponse.data);
         setLoading(false);
-      })
-      .catch((error) => {
-        console.error('Error fetching movie or reviews:', error);
-        // Fallback to sample data
+      } catch (error) {
+        console.error('Error fetching data:', error);
         const sampleMovie = sampleMovies.find(m => m.id === id);
         const movieReviews = sampleReviews.filter(r => r.movieId === id);
         
@@ -404,33 +384,33 @@ function MovieDetailsPage({ id }) {
           setError('Movie not found.');
         }
         setLoading(false);
-      });
-  };
+      }
+    };
 
-  const handleReviewSubmit = () => {
+    fetchMovieAndReviews();
+  }, [id]);
+
+  const handleReviewSubmit = async () => {
     if (rating === 0) {
       alert('Please select a rating');
       return;
     }
 
-    axios.post(`http://localhost:8080/api/movies/${id}/reviews`, { rating, reviewText })
-      .then(() => {
-        alert('Review submitted successfully!');
-        setRating(0);
-        setReviewText('');
-        // Refresh reviews
-        axios.get(`http://localhost:8080/api/movies/${id}/reviews`)
-          .then((response) => {
-            setReviews(response.data);
-          })
-          .catch((error) => {
-            console.error('Error fetching reviews after submit:', error);
-          });
-      })
-      .catch((error) => {
-        console.error('Error submitting review:', error);
-        alert('Failed to submit review. Please try again.');
+    try {
+      await axios.post(`http://localhost:8080/api/movies/${id}/reviews`, { 
+        rating, 
+        reviewText 
       });
+      
+      const response = await axios.get(`http://localhost:8080/api/movies/${id}/reviews`);
+      setReviews(response.data);
+      setRating(0);
+      setReviewText('');
+      alert('Review submitted successfully!');
+    } catch (error) {
+      console.error('Error submitting review:', error);
+      alert('Failed to submit review. Please try again.');
+    }
   };
 
   if (loading) return <div className="loading">Loading...</div>;
@@ -527,7 +507,6 @@ function SeatBookingPage({ movieId }) {
       } catch (err) {
         console.error('Error fetching movie or seats:', err);
         
-        // Fallback to sample data
         const sampleMovie = sampleMovies.find(m => m.id === movieId);
         const movieSeats = sampleSeats.filter(s => s.movieId === movieId);
         
@@ -555,7 +534,6 @@ function SeatBookingPage({ movieId }) {
     }
 
     try {
-      // Get available seats
       const availableSeats = seats.filter(seat => seat.available);
       
       if (availableSeats.length === 0) {
@@ -563,17 +541,14 @@ function SeatBookingPage({ movieId }) {
         return;
       }
 
-      // Select a random available seat
       const randomIndex = Math.floor(Math.random() * availableSeats.length);
       const randomSeat = availableSeats[randomIndex];
       setRandomSeatNumber(randomSeat.seatNumber);
 
-      // Book the seat
       await axios.put(`http://localhost:8080/api/seats/${randomSeat.id}`, {
         available: false
       });
 
-      // Create booking record
       await axios.post(`http://localhost:8080/api/bookings`, {
         movieId,
         seatId: randomSeat.id,
@@ -584,16 +559,13 @@ function SeatBookingPage({ movieId }) {
 
       setBookingSuccess(true);
       
-      // Refresh seats after booking
       const seatsResponse = await axios.get(`http://localhost:8080/api/movies/${movieId}/seats`);
       setSeats(seatsResponse.data);
       
     } catch (err) {
       console.error('Booking error:', err);
       
-      // For demo purposes, show success even if backend fails
       if (err.message && err.message.includes('Network Error')) {
-        // Get available seats from current state
         const availableSeats = seats.filter(seat => seat.available);
         
         if (availableSeats.length === 0) {
@@ -601,7 +573,6 @@ function SeatBookingPage({ movieId }) {
           return;
         }
 
-        // Select a random available seat
         const randomIndex = Math.floor(Math.random() * availableSeats.length);
         const randomSeat = availableSeats[randomIndex];
         setRandomSeatNumber(randomSeat.seatNumber);
